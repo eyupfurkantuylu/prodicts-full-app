@@ -12,7 +12,7 @@ public static class ScalarConfiguration
             app.MapScalarApiReference(options =>
             {
                 options.Title = "Prodicts API";
-                options.Theme = ScalarTheme.Kepler;
+                options.Theme = ScalarTheme.Default;
                 options.ShowSidebar = true;
             });
             
