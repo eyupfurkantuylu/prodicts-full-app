@@ -11,11 +11,13 @@ public class UserService : IUserService
 {
     private readonly IUserRepository _userRepository;
     private readonly IAnonymousUserRepository _anonymousUserRepository;
+    private readonly IJwtService _jwtService;
 
-    public UserService(IUserRepository userRepository, IAnonymousUserRepository anonymousUserRepository)
+    public UserService(IUserRepository userRepository, IAnonymousUserRepository anonymousUserRepository, IJwtService jwtService)
     {
         _userRepository = userRepository;
         _anonymousUserRepository = anonymousUserRepository;
+        _jwtService = jwtService;
     }
 
     public async Task<UserResponseDto?> GetByIdAsync(string id)
@@ -381,6 +383,71 @@ public class UserService : IUserService
             CurrentSubscriptionPlan = "Free",
             SubscriptionExpiresAt = null,
             IsActive = anonymousUser.IsActive
+        };
+    }
+
+    // Authentication Methods
+    public async Task<AuthResponseDto> AuthenticateAsync(LoginUserDto loginDto)
+    {
+        var user = await LoginAsync(loginDto);
+        
+        var accessToken = _jwtService.GenerateToken(user);
+        var refreshToken = _jwtService.GenerateRefreshToken();
+        
+        return new AuthResponseDto
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            ExpiresAt = _jwtService.GetTokenExpiration(accessToken),
+            User = user
+        };
+    }
+
+    public async Task<AuthResponseDto> RegisterAndAuthenticateAsync(RegisterUserDto registerDto)
+    {
+        var user = await RegisterAsync(registerDto);
+        
+        var accessToken = _jwtService.GenerateToken(user);
+        var refreshToken = _jwtService.GenerateRefreshToken();
+        
+        return new AuthResponseDto
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            ExpiresAt = _jwtService.GetTokenExpiration(accessToken),
+            User = user
+        };
+    }
+
+    public async Task<AuthResponseDto> AuthenticateWithProviderAsync(RegisterWithProviderDto providerDto)
+    {
+        var user = await RegisterWithProviderAsync(providerDto);
+        
+        var accessToken = _jwtService.GenerateToken(user);
+        var refreshToken = _jwtService.GenerateRefreshToken();
+        
+        return new AuthResponseDto
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            ExpiresAt = _jwtService.GetTokenExpiration(accessToken),
+            User = user
+        };
+    }
+
+    public async Task<AuthResponseDto> AuthenticateAnonymousAsync(AnonymousUserRequestDto requestDto)
+    {
+        var user = await GetOrCreateAnonymousAsync(requestDto.DeviceId);
+        
+        var accessToken = _jwtService.GenerateAnonymousToken(requestDto.DeviceId);
+        var refreshToken = _jwtService.GenerateRefreshToken();
+        
+        return new AuthResponseDto
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            ExpiresAt = _jwtService.GetTokenExpiration(accessToken),
+            User = user
         };
     }
 }

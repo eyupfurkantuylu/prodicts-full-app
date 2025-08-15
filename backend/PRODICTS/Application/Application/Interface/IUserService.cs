@@ -18,4 +18,10 @@ public interface IUserService
     Task<UserResponseDto> GetOrCreateAnonymousAsync(string deviceId);
     Task<UserResponseDto> SyncUserDataAsync(SyncUserDto syncDto);
     Task<UserResponseDto> UpgradeAnonymousToRegisteredAsync(string deviceId, RegisterUserDto registerDto);
+    
+    // Authentication methods
+    Task<AuthResponseDto> AuthenticateAsync(LoginUserDto loginDto);
+    Task<AuthResponseDto> RegisterAndAuthenticateAsync(RegisterUserDto registerDto);
+    Task<AuthResponseDto> AuthenticateWithProviderAsync(RegisterWithProviderDto providerDto);
+    Task<AuthResponseDto> AuthenticateAnonymousAsync(AnonymousUserRequestDto requestDto);
 }
