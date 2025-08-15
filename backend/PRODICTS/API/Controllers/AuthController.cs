@@ -37,6 +37,7 @@ namespace API.Controllers;
 /// </remarks>
 [ApiController]
 [Route("api/[controller]")]
+[Tags("Auth")]
 public class AuthController : ControllerBase
 {
     private readonly IUserService _userService;

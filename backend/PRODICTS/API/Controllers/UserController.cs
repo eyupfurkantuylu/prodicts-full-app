@@ -44,6 +44,7 @@ namespace API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize] // Tüm endpoint'leri koru
+[Tags("User")]
 public class UserController : ControllerBase
 {
     private readonly IUserService _userService;

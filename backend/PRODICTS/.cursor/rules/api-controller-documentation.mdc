@@ -1,0 +1,192 @@
+---
+globs: API/Controllers/*.cs
+description: API Controller Documentation Standards
+---
+
+# API Controller Dokümantasyon Standartları
+
+Bu kural, tüm API Controller'larında tutarlı ve kapsamlı dokümantasyon hazırlanması için gerekli standartları belirler.
+
+## Controller Seviyesi Dokümantasyon
+
+Her controller için aşağıdaki formatı kullan:
+
+```csharp
+/// <summary>
+/// [Controller'ın ne yaptığını açıklayan kısa tanım]
+/// </summary>
+/// <remarks>
+/// [Detaylı açıklama başlıkları ile organize edilmiş şekilde]
+/// 
+/// **Ana Özellikler:**
+/// - Özellik 1 açıklaması
+/// - Özellik 2 açıklaması
+/// 
+/// **Desteklenen İşlemler:**
+/// - İşlem 1
+/// - İşlem 2
+/// 
+/// **Teknik Detaylar:**
+/// - Teknik bilgi 1
+/// - Teknik bilgi 2
+/// 
+/// **Güvenlik:**
+/// - Güvenlik bilgisi 1
+/// - Güvenlik bilgisi 2
+/// </remarks>
+[ApiController]
+[Route("api/[controller]")]
+public class XController : ControllerBase
+```
+
+## Endpoint Seviyesi Dokümantasyon
+
+Her action method için aşağıdaki elemanları ekle:
+
+### 1. XML Dokümantasyon
+```csharp
+/// <summary>
+/// [Endpoint'in ne yaptığını açıklayan kısa ve net tanım]
+/// </summary>
+/// <param name="paramName">[Parametre açıklaması]</param>
+/// <returns>[Dönüş değeri açıklaması]</returns>
+/// <response code="200">[200 durumu açıklaması]</response>
+/// <response code="400">[400 durumu açıklaması]</response>
+/// <response code="401">[401 durumu açıklaması]</response>
+/// <response code="404">[404 durumu açıklaması]</response>
+/// <response code="500">[500 durumu açıklaması]</response>
+/// <remarks>
+/// [Detaylı kullanım açıklaması]
+/// 
+/// **Kullanım Senaryoları:**
+/// - Senaryo 1 açıklaması
+/// - Senaryo 2 açıklaması
+/// 
+/// **Özel Durumlar:**
+/// - Durum 1 açıklaması
+/// - Durum 2 açıklaması
+/// 
+/// **Örnek Kullanım:**
+/// ```
+/// Kod örneği veya curl komutu
+/// ```
+/// </remarks>
+```
+
+### 2. ProducesResponseType Attribute'ları
+Her olası HTTP response code için:
+```csharp
+[ProducesResponseType(typeof(ApiResponse<ResponseDto>), StatusCodes.Status200OK)]
+[ProducesResponseType(typeof(ApiResponse<ResponseDto>), StatusCodes.Status400BadRequest)]
+[ProducesResponseType(typeof(ApiResponse<ResponseDto>), StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(typeof(ApiResponse<ResponseDto>), StatusCodes.Status404NotFound)]
+[ProducesResponseType(typeof(ApiResponse<ResponseDto>), StatusCodes.Status500InternalServerError)]
+```
+
+### 3. Authorization Attributes
+Gerektiğinde:
+```csharp
+[Authorize] // Tüm authenticated kullanıcılar için
+[AllowAnonymous] // Anonymous erişim izni için
+```
+
+## Error Handling Standardı
+
+Her action method'da tutarlı error handling:
+
+```csharp
+public async Task<ActionResult<ApiResponse<ResponseDto>>> MethodName([FromBody] RequestDto request)
+{
+    try
+    {
+        var result = await _service.DoSomethingAsync(request);
+        return Ok(ApiResponse<ResponseDto>.SuccessResult(result, "İşlem başarılı"));
+    }
+    catch (ValidationException ex)
+    {
+        return BadRequest(ApiResponse<ResponseDto>.ErrorResult(ex.Message));
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        return Unauthorized(ApiResponse<ResponseDto>.ErrorResult(ex.Message));
+    }
+    catch (KeyNotFoundException ex)
+    {
+        return NotFound(ApiResponse<ResponseDto>.ErrorResult(ex.Message));
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "MethodName error");
+        return StatusCode(500, ApiResponse<ResponseDto>.ErrorResult("Bir hata oluştu"));
+    }
+}
+```
+
+## HTTP Method ve Route Standartları
+
+### RESTful Routing
+```csharp
+[HttpGet]                           // GET /api/controller
+[HttpGet("{id}")]                   // GET /api/controller/{id}
+[HttpPost]                          // POST /api/controller
+[HttpPut("{id}")]                   // PUT /api/controller/{id}
+[HttpDelete("{id}")]                // DELETE /api/controller/{id}
+[HttpGet("search")]                 // GET /api/controller/search
+[HttpPost("bulk")]                  // POST /api/controller/bulk
+```
+
+### Action Method Naming
+- `GetAll()` - Tüm kayıtları getir
+- `GetById(string id)` - ID ile kayıt getir
+- `Create(CreateDto dto)` - Yeni kayıt oluştur
+- `Update(string id, UpdateDto dto)` - Kayıt güncelle
+- `Delete(string id)` - Kayıt sil
+- `Search(SearchDto dto)` - Arama yap
+
+## DTO ve Model Referansları
+
+Action method'larda kullanılan tüm DTO'lar için:
+- Request DTO'ları: `[FromBody]` attribute'u ile
+- Response DTO'ları: `ActionResult<ApiResponse<ResponseDto>>` format
+- Validation attribute'ları: `[Required]`, `[EmailAddress]`, `[StringLength]` vb.
+
+## Log Standartları
+
+Her method için:
+```csharp
+private readonly ILogger<ControllerName> _logger;
+
+// Information logging
+_logger.LogInformation($"MethodName called with parameter: {parameter}");
+
+// Error logging
+_logger.LogError(ex, "MethodName error with parameter: {parameter}", parameter);
+
+// Warning logging
+_logger.LogWarning($"MethodName warning: {warningMessage}");
+```
+
+## Dependency Injection
+
+Controller constructor'da:
+```csharp
+private readonly IServiceName _serviceName;
+private readonly ILogger<ControllerName> _logger;
+
+public ControllerName(IServiceName serviceName, ILogger<ControllerName> logger)
+{
+    _serviceName = serviceName;
+    _logger = logger;
+}
+```
+
+## Örnekler
+
+Daha detaylı örnekler için [AuthController.cs](mdc:API/Controllers/AuthController.cs) dosyasını incele.
+
+Bu standartları takip ederek:
+- ✅ Scalar UI'da tam dokümantasyon görünür
+- ✅ OpenAPI şeması eksiksiz oluşur
+- ✅ Response type'ları doğru gösterilir
+- ✅ API kullanımı kolay anlaşılır
+- ✅ Error handling tutarlı olur
