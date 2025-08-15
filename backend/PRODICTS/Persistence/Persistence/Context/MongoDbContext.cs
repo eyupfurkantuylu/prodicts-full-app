@@ -16,6 +16,7 @@ public class MongoDbContext
 
     public IMongoCollection<User> Users => _database.GetCollection<User>("users");
     public IMongoCollection<AnonymousUser> AnonymousUsers => _database.GetCollection<AnonymousUser>("anonymoususers");
+    public IMongoCollection<RefreshToken> RefreshTokens => _database.GetCollection<RefreshToken>("refreshtokens");
     public IMongoCollection<DictionaryWord> Words => _database.GetCollection<DictionaryWord>("words");
     public IMongoCollection<FlashCard> FlashCards => _database.GetCollection<FlashCard>("flashcards");
     public IMongoCollection<FlashCardGroup> FlashCardGroups => _database.GetCollection<FlashCardGroup>("flashcardgroups");

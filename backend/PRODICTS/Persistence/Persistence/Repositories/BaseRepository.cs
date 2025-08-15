@@ -17,8 +17,18 @@ public class BaseRepository<T> : IRepository<T> where T : class
 
     public virtual async Task<T?> GetByIdAsync(string id)
     {
-        var filter = Builders<T>.Filter.Eq("_id", id);
-        return await _collection.Find(filter).FirstOrDefaultAsync();
+        try
+        {
+            // MongoDB ObjectId formatında arama yap
+            var objectId = new MongoDB.Bson.ObjectId(id);
+            var filter = Builders<T>.Filter.Eq("_id", objectId);
+            return await _collection.Find(filter).FirstOrDefaultAsync();
+        }
+        catch (FormatException)
+        {
+            // Geçersiz ObjectId formatı
+            return null;
+        }
     }
 
     public virtual async Task<IEnumerable<T>> GetAllAsync()
@@ -52,23 +62,47 @@ public class BaseRepository<T> : IRepository<T> where T : class
         if (string.IsNullOrEmpty(id))
             throw new InvalidOperationException("Entity Id cannot be null or empty");
 
-        var filter = Builders<T>.Filter.Eq("_id", id);
-        await _collection.ReplaceOneAsync(filter, entity);
-        return entity;
+        try
+        {
+            var objectId = new MongoDB.Bson.ObjectId(id);
+            var filter = Builders<T>.Filter.Eq("_id", objectId);
+            await _collection.ReplaceOneAsync(filter, entity);
+            return entity;
+        }
+        catch (FormatException)
+        {
+            throw new InvalidOperationException($"Invalid ObjectId format: {id}");
+        }
     }
 
     public virtual async Task<bool> DeleteAsync(string id)
     {
-        var filter = Builders<T>.Filter.Eq("_id", id);
-        var result = await _collection.DeleteOneAsync(filter);
-        return result.DeletedCount > 0;
+        try
+        {
+            var objectId = new MongoDB.Bson.ObjectId(id);
+            var filter = Builders<T>.Filter.Eq("_id", objectId);
+            var result = await _collection.DeleteOneAsync(filter);
+            return result.DeletedCount > 0;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
     }
 
     public virtual async Task<bool> ExistsAsync(string id)
     {
-        var filter = Builders<T>.Filter.Eq("_id", id);
-        var count = await _collection.CountDocumentsAsync(filter);
-        return count > 0;
+        try
+        {
+            var objectId = new MongoDB.Bson.ObjectId(id);
+            var filter = Builders<T>.Filter.Eq("_id", objectId);
+            var count = await _collection.CountDocumentsAsync(filter);
+            return count > 0;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
     }
 
     public virtual async Task<long> CountAsync()

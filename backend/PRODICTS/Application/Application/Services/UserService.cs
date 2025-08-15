@@ -11,12 +11,14 @@ public class UserService : IUserService
 {
     private readonly IUserRepository _userRepository;
     private readonly IAnonymousUserRepository _anonymousUserRepository;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IJwtService _jwtService;
 
-    public UserService(IUserRepository userRepository, IAnonymousUserRepository anonymousUserRepository, IJwtService jwtService)
+    public UserService(IUserRepository userRepository, IAnonymousUserRepository anonymousUserRepository, IRefreshTokenRepository refreshTokenRepository, IJwtService jwtService)
     {
         _userRepository = userRepository;
         _anonymousUserRepository = anonymousUserRepository;
+        _refreshTokenRepository = refreshTokenRepository;
         _jwtService = jwtService;
     }
 
@@ -389,50 +391,58 @@ public class UserService : IUserService
     // Authentication Methods
     public async Task<AuthResponseDto> AuthenticateAsync(LoginUserDto loginDto)
     {
-        var user = await LoginAsync(loginDto);
-        
-        var accessToken = _jwtService.GenerateToken(user);
-        var refreshToken = _jwtService.GenerateRefreshToken();
-        
-        return new AuthResponseDto
+        // Email ile kullanıcıyı bul
+        var user = await _userRepository.GetByEmailAsync(loginDto.Email);
+        if (user == null || !VerifyPassword(loginDto.Password, user.PasswordHash!))
         {
-            AccessToken = accessToken,
-            RefreshToken = refreshToken,
-            ExpiresAt = _jwtService.GetTokenExpiration(accessToken),
-            User = user
-        };
+            throw new UnauthorizedAccessException("Email veya şifre hatalı.");
+        }
+
+        if (!user.IsActive)
+        {
+            throw new UnauthorizedAccessException("Hesap devre dışı bırakılmış.");
+        }
+
+        // Son giriş zamanını güncelle
+        user.UpdatedAt = DateTime.UtcNow;
+        await _userRepository.UpdateAsync(user);
+
+        var userDto = MapToResponseDto(user);
+        return await GenerateAuthResponseAsync(userDto);
     }
 
     public async Task<AuthResponseDto> RegisterAndAuthenticateAsync(RegisterUserDto registerDto)
     {
-        var user = await RegisterAsync(registerDto);
-        
-        var accessToken = _jwtService.GenerateToken(user);
-        var refreshToken = _jwtService.GenerateRefreshToken();
-        
-        return new AuthResponseDto
+        // Email kontrolü
+        if (await _userRepository.EmailExistsAsync(registerDto.Email))
         {
-            AccessToken = accessToken,
-            RefreshToken = refreshToken,
-            ExpiresAt = _jwtService.GetTokenExpiration(accessToken),
-            User = user
+            throw new InvalidOperationException("Bu email adresi zaten kullanılıyor.");
+        }
+
+        // Şifre hash'leme
+        var passwordHash = HashPassword(registerDto.Password);
+
+        var user = new User
+        {
+            FirstName = registerDto.FirstName,
+            LastName = registerDto.LastName,
+            Email = registerDto.Email,
+            PasswordHash = passwordHash,
+            ProfilePictureUrl = registerDto.ProfilePictureUrl,
+            EmailVerified = false,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
+
+        await _userRepository.CreateAsync(user);
+        var userDto = MapToResponseDto(user);
+        return await GenerateAuthResponseAsync(userDto);
     }
 
     public async Task<AuthResponseDto> AuthenticateWithProviderAsync(RegisterWithProviderDto providerDto)
     {
         var user = await RegisterWithProviderAsync(providerDto);
-        
-        var accessToken = _jwtService.GenerateToken(user);
-        var refreshToken = _jwtService.GenerateRefreshToken();
-        
-        return new AuthResponseDto
-        {
-            AccessToken = accessToken,
-            RefreshToken = refreshToken,
-            ExpiresAt = _jwtService.GetTokenExpiration(accessToken),
-            User = user
-        };
+        return await GenerateAuthResponseAsync(user);
     }
 
     public async Task<AuthResponseDto> AuthenticateAnonymousAsync(AnonymousUserRequestDto requestDto)
@@ -442,6 +452,93 @@ public class UserService : IUserService
         var accessToken = _jwtService.GenerateAnonymousToken(requestDto.DeviceId);
         var refreshToken = _jwtService.GenerateRefreshToken();
         
+        return new AuthResponseDto
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            ExpiresAt = _jwtService.GetTokenExpiration(accessToken),
+            User = user
+        };
+    }
+
+    public async Task<AuthResponseDto> RefreshTokenAsync(string refreshToken, string? deviceId = null)
+    {
+        var storedToken = await _refreshTokenRepository.GetByTokenAsync(refreshToken);
+        if (storedToken == null || !storedToken.IsActive)
+        {
+            throw new UnauthorizedAccessException("Geçersiz refresh token");
+        }
+
+        var user = await _userRepository.GetByIdAsync(storedToken.UserId);
+        if (user == null)
+        {
+            throw new UnauthorizedAccessException("Kullanıcı bulunamadı");
+        }
+
+        // Eski token'ı kullanılmış olarak işaretle
+        storedToken.IsUsed = true;
+        storedToken.UsedAt = DateTime.UtcNow;
+
+        // Yeni token seti oluştur
+        var userDto = MapToResponseDto(user);
+        var newRefreshToken = _jwtService.GenerateRefreshToken();
+        var jwtId = Guid.NewGuid().ToString();
+        var newAccessToken = _jwtService.GenerateToken(userDto, jwtId);
+
+        // Yeni refresh token'ı kaydet
+        var newStoredToken = new RefreshToken
+        {
+            UserId = user.Id,
+            Token = newRefreshToken,
+            JwtId = jwtId,
+            DeviceId = deviceId ?? storedToken.DeviceId,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddDays(30)
+        };
+
+        // Eski token'ı güncelle ve yeni token'ı kaydet
+        storedToken.ReplacedByToken = newRefreshToken;
+        await _refreshTokenRepository.UpdateAsync(storedToken);
+        await _refreshTokenRepository.CreateAsync(newStoredToken);
+
+        return new AuthResponseDto
+        {
+            AccessToken = newAccessToken,
+            RefreshToken = newRefreshToken,
+            ExpiresAt = _jwtService.GetTokenExpiration(newAccessToken),
+            User = userDto
+        };
+    }
+
+    public async Task RevokeTokenAsync(string refreshToken)
+    {
+        await _refreshTokenRepository.RevokeTokenAsync(refreshToken);
+    }
+
+    public async Task RevokeAllUserTokensAsync(string userId)
+    {
+        await _refreshTokenRepository.RevokeAllUserTokensAsync(userId);
+    }
+
+    private async Task<AuthResponseDto> GenerateAuthResponseAsync(UserResponseDto user, string? deviceId = null)
+    {
+        var jwtId = Guid.NewGuid().ToString();
+        var accessToken = _jwtService.GenerateToken(user, jwtId);
+        var refreshToken = _jwtService.GenerateRefreshToken();
+
+        // Refresh token'ı veritabanında sakla
+        var storedRefreshToken = new RefreshToken
+        {
+            UserId = user.Id,
+            Token = refreshToken,
+            JwtId = jwtId,
+            DeviceId = deviceId,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddDays(30)
+        };
+
+        await _refreshTokenRepository.CreateAsync(storedRefreshToken);
+
         return new AuthResponseDto
         {
             AccessToken = accessToken,

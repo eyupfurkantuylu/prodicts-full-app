@@ -26,13 +26,16 @@ public class JwtService : IJwtService
         _expiryMinutes = int.Parse(_configuration["JwtSettings:ExpiryMinutes"] ?? "60");
     }
 
-    public string GenerateToken(UserResponseDto user)
+    public string GenerateToken(UserResponseDto user, string? jwtId = null)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_secretKey);
 
+        var tokenId = jwtId ?? Guid.NewGuid().ToString();
+
         var claims = new List<Claim>
         {
+            new(JwtRegisteredClaimNames.Jti, tokenId),
             new(ClaimTypes.NameIdentifier, user.Id),
             new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.Name, $"{user.FirstName} {user.LastName}"),
@@ -141,6 +144,21 @@ public class JwtService : IJwtService
             var jsonToken = tokenHandler.ReadJwtToken(token);
             
             return jsonToken.Claims.FirstOrDefault(x => x.Type == "device_id")?.Value;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public string? GetJwtIdFromToken(string token)
+    {
+        try
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var jsonToken = tokenHandler.ReadJwtToken(token);
+            
+            return jsonToken.Claims.FirstOrDefault(x => x.Type == JwtRegisteredClaimNames.Jti)?.Value;
         }
         catch
         {

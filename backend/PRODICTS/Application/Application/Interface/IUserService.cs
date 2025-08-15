@@ -24,4 +24,7 @@ public interface IUserService
     Task<AuthResponseDto> RegisterAndAuthenticateAsync(RegisterUserDto registerDto);
     Task<AuthResponseDto> AuthenticateWithProviderAsync(RegisterWithProviderDto providerDto);
     Task<AuthResponseDto> AuthenticateAnonymousAsync(AnonymousUserRequestDto requestDto);
+    Task<AuthResponseDto> RefreshTokenAsync(string refreshToken, string? deviceId = null);
+    Task RevokeTokenAsync(string refreshToken);
+    Task RevokeAllUserTokensAsync(string userId);
 }
