@@ -21,45 +21,9 @@ public class UserController : ControllerBase
         _logger = logger;
     }
 
-    [HttpPost("register")]
-    [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<UserResponseDto>>> Register([FromBody] RegisterUserDto registerDto)
-    {
-        try
-        {
-            var result = await _userService.RegisterAsync(registerDto);
-            return Ok(ApiResponse<UserResponseDto>.SuccessResult(result, "Kayıt başarılı"));
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ApiResponse<UserResponseDto>.ErrorResult(ex.Message));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Register error");
-            return StatusCode(500, ApiResponse<UserResponseDto>.ErrorResult("Bir hata oluştu"));
-        }
-    }
 
-    [HttpPost("login")]
-    [AllowAnonymous]
-    public async Task<ActionResult<ApiResponse<UserResponseDto>>> Login([FromBody] LoginUserDto loginDto)
-    {
-        try
-        {
-            var result = await _userService.LoginAsync(loginDto);
-            return Ok(ApiResponse<UserResponseDto>.SuccessResult(result, "Giriş başarılı"));
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return Unauthorized(ApiResponse<UserResponseDto>.ErrorResult(ex.Message));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Login error");
-            return StatusCode(500, ApiResponse<UserResponseDto>.ErrorResult("Bir hata oluştu"));
-        }
-    }
+
+  
 
     [HttpPost("register-provider")]
     [AllowAnonymous]
