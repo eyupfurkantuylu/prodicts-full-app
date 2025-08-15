@@ -30,6 +30,12 @@ public class User
     [BsonElement("providers")]
     public List<UserProvider> Providers { get; set; } = new();
 
+    [BsonElement("deviceIds")]
+    public List<string> DeviceIds { get; set; } = new(); // Multiple devices support
+
+    [BsonElement("anonymousUserId")]
+    public string? AnonymousUserId { get; set; } // Reference to merged anonymous user
+
     [BsonElement("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
