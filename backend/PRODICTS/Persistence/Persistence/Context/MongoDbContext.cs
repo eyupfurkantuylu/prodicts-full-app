@@ -13,7 +13,7 @@ public class MongoDbContext
         var client = new MongoClient(settings.Value.ConnectionString);
         _database = client.GetDatabase(settings.Value.DatabaseName);
     }
-
+    public IMongoCollection<AppConfig> AppConfig => _database.GetCollection<AppConfig>("appconfigs");
     public IMongoCollection<User> Users => _database.GetCollection<User>("users");
     public IMongoCollection<AnonymousUser> AnonymousUsers => _database.GetCollection<AnonymousUser>("anonymoususers");
     public IMongoCollection<RefreshToken> RefreshTokens => _database.GetCollection<RefreshToken>("refreshtokens");

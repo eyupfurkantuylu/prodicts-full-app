@@ -31,6 +31,7 @@ public class FlashCardGroupController : ControllerBase
     /// </summary>
     /// <returns>Kullanıcının flashcard grupları</returns>
     [HttpGet]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse<IEnumerable<FlashCardGroupResponseDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<IEnumerable<FlashCardGroupResponseDto>>), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ApiResponse<IEnumerable<FlashCardGroupResponseDto>>>> GetAll()
@@ -54,6 +55,7 @@ public class FlashCardGroupController : ControllerBase
     /// <param name="id">FlashCard Group ID</param>
     /// <returns>FlashCard Group bilgileri</returns>
     [HttpGet("{id}")]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse<FlashCardGroupResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<FlashCardGroupResponseDto>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<FlashCardGroupResponseDto>), StatusCodes.Status401Unauthorized)]
@@ -82,6 +84,7 @@ public class FlashCardGroupController : ControllerBase
     /// <param name="dto">FlashCard Group bilgileri</param>
     /// <returns>Oluşturulan flashcard grubu</returns>
     [HttpPost]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse<FlashCardGroupResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<FlashCardGroupResponseDto>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<FlashCardGroupResponseDto>), StatusCodes.Status401Unauthorized)]
@@ -112,6 +115,7 @@ public class FlashCardGroupController : ControllerBase
     /// <param name="dto">Güncellenecek bilgiler</param>
     /// <returns>Güncellenmiş flashcard grubu</returns>
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse<FlashCardGroupResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<FlashCardGroupResponseDto>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<FlashCardGroupResponseDto>), StatusCodes.Status400BadRequest)]
@@ -148,6 +152,7 @@ public class FlashCardGroupController : ControllerBase
     /// Grup silindiğinde, gruba ait tüm flashcard'lar da silinir.
     /// </remarks>
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]

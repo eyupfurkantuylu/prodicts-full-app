@@ -4,6 +4,7 @@ using API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 
 namespace API.Controllers;
 
@@ -57,9 +58,6 @@ public class UserController : ControllerBase
     }
 
 
-
-  
-
     /// <summary>
     /// OAuth provider ile kullanıcı kaydı
     /// </summary>
@@ -102,7 +100,8 @@ public class UserController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<ApiResponse<UserResponseDto>>> RegisterWithProvider([FromBody] RegisterWithProviderDto providerDto)
+    public async Task<ActionResult<ApiResponse<UserResponseDto>>> RegisterWithProvider(
+        [FromBody] RegisterWithProviderDto providerDto)
     {
         try
         {
@@ -159,7 +158,8 @@ public class UserController : ControllerBase
     [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<ApiResponse<UserResponseDto>>> GetOrCreateAnonymous([FromBody] AnonymousUserRequestDto requestDto)
+    public async Task<ActionResult<ApiResponse<UserResponseDto>>> GetOrCreateAnonymous(
+        [FromBody] AnonymousUserRequestDto requestDto)
     {
         try
         {
@@ -286,12 +286,15 @@ public class UserController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<ApiResponse<UserResponseDto>>> UpgradeAnonymousToRegistered([FromBody] UpgradeAnonymousRequestDto requestDto)
+    public async Task<ActionResult<ApiResponse<UserResponseDto>>> UpgradeAnonymousToRegistered(
+        [FromBody] UpgradeAnonymousRequestDto requestDto)
     {
         try
         {
-            var result = await _userService.UpgradeAnonymousToRegisteredAsync(requestDto.DeviceId, requestDto.RegisterData);
-            return Ok(ApiResponse<UserResponseDto>.SuccessResult(result, "Anonymous user kayıtlı kullanıcıya dönüştürüldü"));
+            var result =
+                await _userService.UpgradeAnonymousToRegisteredAsync(requestDto.DeviceId, requestDto.RegisterData);
+            return Ok(ApiResponse<UserResponseDto>.SuccessResult(result,
+                "Anonymous user kayıtlı kullanıcıya dönüştürüldü"));
         }
         catch (KeyNotFoundException ex)
         {
@@ -344,6 +347,7 @@ public class UserController : ControllerBase
     /// ```
     /// </remarks>
     [HttpGet("{id}")]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status404NotFound)]
@@ -352,13 +356,20 @@ public class UserController : ControllerBase
     {
         try
         {
-            var result = await _userService.GetByIdAsync(id);
-            if (result == null)
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            if (id == userId || role == "Admin")
             {
-                return NotFound(ApiResponse<UserResponseDto>.ErrorResult("Kullanıcı bulunamadı"));
+                var result = await _userService.GetByIdAsync(id);
+                if (result == null)
+                {
+                    return NotFound(ApiResponse<UserResponseDto>.ErrorResult("Kullanıcı bulunamadı"));
+                }
+
+                return Ok(ApiResponse<UserResponseDto>.SuccessResult(result));
             }
 
-            return Ok(ApiResponse<UserResponseDto>.SuccessResult(result));
+            return Unauthorized(ApiResponse.ErrorResult("Yetkisiz erişim"));
         }
         catch (Exception ex)
         {
@@ -398,6 +409,7 @@ public class UserController : ControllerBase
     /// ```
     /// </remarks>
     [HttpGet("email/{email}")]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status404NotFound)]
@@ -469,6 +481,7 @@ public class UserController : ControllerBase
     /// ```
     /// </remarks>
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<UserResponseDto>), StatusCodes.Status401Unauthorized)]
@@ -478,8 +491,15 @@ public class UserController : ControllerBase
     {
         try
         {
-            var result = await _userService.UpdateAsync(id, updateDto);
-            return Ok(ApiResponse<UserResponseDto>.SuccessResult(result, "Güncelleme başarılı"));
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            if (id == userId || role == "Admin")
+            {
+                var result = await _userService.UpdateAsync(id, updateDto);
+                return Ok(ApiResponse<UserResponseDto>.SuccessResult(result, "Güncelleme başarılı"));
+            }
+
+            return Unauthorized(ApiResponse.ErrorResult("Yetkisiz erişim"));
         }
         catch (KeyNotFoundException ex)
         {
@@ -535,6 +555,7 @@ public class UserController : ControllerBase
     /// ```
     /// </remarks>
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
@@ -543,13 +564,21 @@ public class UserController : ControllerBase
     {
         try
         {
-            var result = await _userService.DeleteAsync(id);
-            if (!result)
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            if (id == userId || role == "Admin")
             {
-                return NotFound(ApiResponse.ErrorResult("Kullanıcı bulunamadı"));
+                var result = await _userService.DeleteAsync(id);
+                if (!result)
+                {
+                    return NotFound(ApiResponse.ErrorResult("Kullanıcı bulunamadı"));
+                }
+                return Ok(ApiResponse.SuccessResult("Kullanıcı silindi"));
             }
 
-            return Ok(ApiResponse.SuccessResult("Kullanıcı silindi"));
+            return Unauthorized(ApiResponse.ErrorResult("Yetkisiz erişim"));
+
+
         }
         catch (Exception ex)
         {
@@ -619,5 +648,3 @@ public class UserController : ControllerBase
         }
     }
 }
-
-

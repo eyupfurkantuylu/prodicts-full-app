@@ -39,7 +39,8 @@ public class JwtService : IJwtService
             new(ClaimTypes.NameIdentifier, user.Id),
             new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.Name, $"{user.FirstName} {user.LastName}"),
-            new("subscription", user.CurrentSubscriptionPlan)
+            new("subscription", user.CurrentSubscriptionPlan),
+            new(ClaimTypes.Role, user.Role)
         };
 
         // Provider bilgilerini claims'e ekle

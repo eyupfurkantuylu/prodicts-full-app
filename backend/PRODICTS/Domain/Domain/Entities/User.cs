@@ -1,4 +1,5 @@
-﻿using MongoDB.Bson;
+﻿using Domain.Enums;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace Domain.Entities;
@@ -17,6 +18,9 @@ public class User
 
     [BsonElement("email")]
     public string Email { get; set; } = string.Empty;
+    
+    [BsonElement("role")]
+    public string Role { get; set; } = "User";
 
     [BsonElement("passwordHash")]
     public string? PasswordHash { get; set; }

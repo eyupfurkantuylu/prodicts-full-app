@@ -30,7 +30,8 @@ public class FlashCardController : ControllerBase
     /// Kullanıcının tüm flashcard'larını getir
     /// </summary>
     /// <returns>Kullanıcının flashcard'ları</returns>
-    [HttpGet]
+    [HttpGet("GetAll")]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse<IEnumerable<FlashCardResponseDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<IEnumerable<FlashCardResponseDto>>), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ApiResponse<IEnumerable<FlashCardResponseDto>>>> GetAll()
@@ -54,6 +55,7 @@ public class FlashCardController : ControllerBase
     /// <param name="groupId">Grup ID</param>
     /// <returns>Gruba ait flashcard'lar</returns>
     [HttpGet("group/{groupId}")]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse<IEnumerable<FlashCardResponseDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<IEnumerable<FlashCardResponseDto>>), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ApiResponse<IEnumerable<FlashCardResponseDto>>>> GetByGroupId(string groupId)
@@ -76,6 +78,7 @@ public class FlashCardController : ControllerBase
     /// </summary>
     /// <returns>Tekrar edilecek flashcard'lar</returns>
     [HttpGet("due")]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse<IEnumerable<FlashCardResponseDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<IEnumerable<FlashCardResponseDto>>), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<ApiResponse<IEnumerable<FlashCardResponseDto>>>> GetDueForReview()
@@ -98,7 +101,8 @@ public class FlashCardController : ControllerBase
     /// </summary>
     /// <param name="id">FlashCard ID</param>
     /// <returns>FlashCard bilgileri</returns>
-    [HttpGet("{id}")]
+    [HttpGet("GetById/{id}")]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status401Unauthorized)]
@@ -126,7 +130,8 @@ public class FlashCardController : ControllerBase
     /// </summary>
     /// <param name="dto">FlashCard bilgileri</param>
     /// <returns>Oluşturulan flashcard</returns>
-    [HttpPost]
+    [HttpPost("Create")]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status401Unauthorized)]
@@ -156,7 +161,8 @@ public class FlashCardController : ControllerBase
     /// <param name="id">FlashCard ID</param>
     /// <param name="dto">Güncellenecek bilgiler</param>
     /// <returns>Güncellenmiş flashcard</returns>
-    [HttpPut("{id}")]
+    [HttpPut("Update/{id}")]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status401Unauthorized)]
@@ -184,7 +190,8 @@ public class FlashCardController : ControllerBase
     /// </summary>
     /// <param name="id">FlashCard ID</param>
     /// <returns>Silme durumu</returns>
-    [HttpDelete("{id}")]
+    [HttpDelete("Delete/{id}")]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status401Unauthorized)]
@@ -213,7 +220,8 @@ public class FlashCardController : ControllerBase
     /// <param name="id">FlashCard ID</param>
     /// <param name="dto">Tekrar sonucu (doğru/yanlış)</param>
     /// <returns>Güncellenmiş flashcard</returns>
-    [HttpPost("{id}/review")]
+    [HttpPost("Review/{id}")]
+    [Authorize(Roles = "Admin, User")]
     [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status401Unauthorized)]

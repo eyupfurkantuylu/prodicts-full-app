@@ -38,6 +38,9 @@ public class AnonymousUser
 
     [BsonElement("isActive")]
     public bool IsActive { get; set; } = true;
+    
+    [BsonElement("role")] 
+    public string Role { get; set; } = "Anonymous";
 }
 
 public class AnonymousUserSyncData

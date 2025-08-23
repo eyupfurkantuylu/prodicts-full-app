@@ -238,7 +238,8 @@ public class UserService : IUserService
             SubscriptionProvider = user.SubscriptionProvider,
             CurrentSubscriptionPlan = user.CurrentSubscriptionPlan,
             SubscriptionExpiresAt = user.SubscriptionExpiresAt,
-            IsActive = user.IsActive
+            IsActive = user.IsActive,
+            Role = user.Role
         };
     }
 
@@ -357,7 +358,8 @@ public class UserService : IUserService
             DeviceIds = new List<string> { deviceId },
             AnonymousUserId = anonymousUser.Id,
             CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            UpdatedAt = DateTime.UtcNow,
+            Role =  "User"
         };
 
         await _userRepository.CreateAsync(user);
@@ -384,7 +386,8 @@ public class UserService : IUserService
             SubscriptionProvider = null,
             CurrentSubscriptionPlan = "Free",
             SubscriptionExpiresAt = null,
-            IsActive = anonymousUser.IsActive
+            IsActive = anonymousUser.IsActive,
+            Role = "User"
         };
     }
 
@@ -431,7 +434,8 @@ public class UserService : IUserService
             ProfilePictureUrl = registerDto.ProfilePictureUrl,
             EmailVerified = false,
             CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            UpdatedAt = DateTime.UtcNow,
+            Role = "User"
         };
 
         await _userRepository.CreateAsync(user);

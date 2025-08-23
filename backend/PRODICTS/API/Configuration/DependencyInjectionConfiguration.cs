@@ -27,11 +27,13 @@ public static class DependencyInjectionConfiguration
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IFlashCardRepository, FlashCardRepository>();
         services.AddScoped<IFlashCardGroupRepository, FlashCardGroupRepository>();
+        services.AddScoped<IAppConfigRepository, AppConfigRepository>();
 
         // Service Dependencies
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IFlashCardService, FlashCardService>();
         services.AddScoped<IFlashCardGroupService, FlashCardGroupService>();
+        services.AddScoped<IAppConfigService, AppConfigService>(); 
     }
 }
