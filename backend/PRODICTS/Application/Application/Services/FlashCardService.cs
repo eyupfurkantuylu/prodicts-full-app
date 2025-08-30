@@ -85,6 +85,48 @@ public class FlashCardService : IFlashCardService
         return MapToResponseDto(flashCard);
     }
 
+    public async Task<FlashCardResponseDto?> StudyAsync(string id, string userId)
+    {
+        var flashCard = await _flashCardRepository.GetByUserIdAndIdAsync(userId, id);
+        if (flashCard == null)
+            return null;
+        
+        if (flashCard.IsCompleted)
+            return MapToResponseDto(flashCard);
+
+        // İlk kez çalışılıyor
+        if (flashCard.FirstLearningDate == null)
+        {
+            var now = DateTime.UtcNow;
+            flashCard.ReviewDates = new List<DateTime> { now };
+            flashCard.FirstLearningDate = now;
+            flashCard.CurrentStep = 1; // İlk adım 1 olmalı
+            flashCard.NextReviewDate = CalculateNextReviewDate(flashCard.CurrentStep);
+            
+            await _flashCardRepository.UpdateAsync(flashCard);
+            return MapToResponseDto(flashCard);
+        }
+
+        // Devam eden çalışma
+        if (flashCard.CurrentStep >= 1 && flashCard.CurrentStep < 6)
+        {
+            flashCard.CurrentStep++;
+            flashCard.NextReviewDate = CalculateNextReviewDate(flashCard.CurrentStep);
+            flashCard.ReviewDates.Add(DateTime.UtcNow);
+            
+            // Son adıma ulaşıldığında tamamlandı olarak işaretle
+            if (flashCard.CurrentStep >= 6)
+            {
+                flashCard.IsCompleted = true;
+            }
+            
+            await _flashCardRepository.UpdateAsync(flashCard);
+            return MapToResponseDto(flashCard);
+        }
+        
+        return MapToResponseDto(flashCard);
+    }
+
     public async Task<bool> DeleteAsync(string id, string userId)
     {
         var flashCard = await _flashCardRepository.GetByUserIdAndIdAsync(userId, id);

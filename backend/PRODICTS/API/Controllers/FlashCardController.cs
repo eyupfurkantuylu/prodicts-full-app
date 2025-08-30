@@ -215,6 +215,35 @@ public class FlashCardController : ControllerBase
     }
 
     /// <summary>
+    /// FlashCard çalışma işlemi - kartı bir sonraki adıma geçir
+    /// </summary>
+    /// <param name="id">FlashCard ID</param>
+    /// <returns>Güncellenmiş flashcard</returns>
+    [HttpPost("Study/{id}")]
+    [Authorize(Roles = "Admin, User")]
+    [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<FlashCardResponseDto>), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ApiResponse<FlashCardResponseDto>>> Study(string id)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var flashCard = await _flashCardService.StudyAsync(id, userId);
+            
+            if (flashCard == null)
+                return NotFound(ApiResponse<FlashCardResponseDto>.ErrorResult("FlashCard bulunamadı"));
+
+            return Ok(ApiResponse<FlashCardResponseDto>.SuccessResult(flashCard, "Çalışma kaydedildi"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Study flashcard error");
+            return StatusCode(500, ApiResponse<FlashCardResponseDto>.ErrorResult("Bir hata oluştu"));
+        }
+    }
+
+    /// <summary>
     /// FlashCard tekrar işlemi
     /// </summary>
     /// <param name="id">FlashCard ID</param>

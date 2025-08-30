@@ -12,4 +12,5 @@ public interface IFlashCardService
     Task<FlashCardResponseDto?> UpdateAsync(string id, UpdateFlashCardDto dto, string userId);
     Task<bool> DeleteAsync(string id, string userId);
     Task<FlashCardResponseDto?> ReviewAsync(string id, ReviewFlashCardDto dto, string userId);
+    Task<FlashCardResponseDto?>  StudyAsync(string id, string userId);
 }
