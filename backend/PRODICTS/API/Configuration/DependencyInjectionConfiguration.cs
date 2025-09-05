@@ -28,12 +28,20 @@ public static class DependencyInjectionConfiguration
         services.AddScoped<IFlashCardRepository, FlashCardRepository>();
         services.AddScoped<IFlashCardGroupRepository, FlashCardGroupRepository>();
         services.AddScoped<IAppConfigRepository, AppConfigRepository>();
+        services.AddScoped<IPodcastSeriesRepository, PodcastSeriesRepository>();
+        services.AddScoped<IPodcastSeasonRepository, PodcastSeasonRepository>();
+        services.AddScoped<IPodcastEpisodeRepository, PodcastEpisodeRepository>();
+        services.AddScoped<IPodcastQuizRepository, PodcastQuizRepository>();
 
         // Service Dependencies
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IFlashCardService, FlashCardService>();
         services.AddScoped<IFlashCardGroupService, FlashCardGroupService>();
-        services.AddScoped<IAppConfigService, AppConfigService>(); 
+        services.AddScoped<IAppConfigService, AppConfigService>();
+        services.AddScoped<IPodcastSeriesService, PodcastSeriesService>();
+        services.AddScoped<IPodcastSeasonService, PodcastSeasonService>();
+        services.AddScoped<IPodcastEpisodeService, PodcastEpisodeService>();
+        services.AddScoped<IPodcastQuizService, PodcastQuizService>(); 
     }
 }

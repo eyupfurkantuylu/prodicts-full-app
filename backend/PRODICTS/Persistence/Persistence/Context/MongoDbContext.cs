@@ -28,6 +28,10 @@ public class MongoDbContext
     public IMongoCollection<Antonym> Antonyms => _database.GetCollection<Antonym>("antonyms");
     public IMongoCollection<Collocation> Collocations => _database.GetCollection<Collocation>("collocations");
     public IMongoCollection<ExampleSentence> ExampleSentences => _database.GetCollection<ExampleSentence>("examplesentences");
+    public IMongoCollection<PodcastSeries> PodcastSeries => _database.GetCollection<PodcastSeries>("podcastseries");
+    public IMongoCollection<PodcastSeason> PodcastSeasons => _database.GetCollection<PodcastSeason>("podcastseasons");
+    public IMongoCollection<PodcastEpisode> PodcastEpisodes => _database.GetCollection<PodcastEpisode>("podcastepisodes");
+    public IMongoCollection<PodcastQuiz> PodcastQuizzes => _database.GetCollection<PodcastQuiz>("podcastquizzes");
 }
 
 public class MongoDbSettings
