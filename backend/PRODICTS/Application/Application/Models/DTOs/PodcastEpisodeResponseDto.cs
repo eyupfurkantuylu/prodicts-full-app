@@ -1,3 +1,6 @@
+using Domain.Entities;
+using Domain.Enums;
+
 namespace Application.Models.DTOs;
 
 public class PodcastEpisodeResponseDto
@@ -10,11 +13,16 @@ public class PodcastEpisodeResponseDto
     public string Description { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public int DurationSeconds { get; set; }
-    public string AudioUrl { get; set; } = string.Empty;
-    public string AudioQualities { get; set; } = string.Empty;
+    public string OriginalAudioUrl { get; set; } = string.Empty;
+    public List<AudioQuality> AudioQualities { get; set; } = new();
     public string? ThumbnailUrl { get; set; }
     public DateTime ReleaseDate { get; set; }
     public bool IsActive { get; set; }
+    public ProcessingStatus ProcessingStatus { get; set; }
+    public string OriginalFileName { get; set; } = string.Empty;
+    public DateTime? ProcessingStartedAt { get; set; }
+    public DateTime? ProcessingCompletedAt { get; set; }
+    public string? ProcessingErrorMessage { get; set; }
     
     // Series bilgileri
     public string SeriesTitle { get; set; } = string.Empty;

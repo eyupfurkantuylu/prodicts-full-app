@@ -63,10 +63,12 @@ public class PodcastEpisodeService : IPodcastEpisodeService
             Title = dto.Title,
             Description = dto.Description,
             DurationSeconds = dto.DurationSeconds,
-            AudioUrl = dto.AudioUrl,
+            OriginalAudioUrl = dto.OriginalAudioUrl,
             AudioQualities = dto.AudioQualities,
             ThumbnailUrl = dto.ThumbnailUrl,
             ReleaseDate = dto.ReleaseDate,
+            ProcessingStatus = dto.ProcessingStatus,
+            OriginalFileName = dto.OriginalFileName,
             CreatedAt = DateTime.UtcNow,
             IsActive = true
         };
@@ -86,11 +88,16 @@ public class PodcastEpisodeService : IPodcastEpisodeService
         if (dto.Title != null) existingEpisode.Title = dto.Title;
         if (dto.Description != null) existingEpisode.Description = dto.Description;
         if (dto.DurationSeconds.HasValue) existingEpisode.DurationSeconds = dto.DurationSeconds.Value;
-        if (dto.AudioUrl != null) existingEpisode.AudioUrl = dto.AudioUrl;
+        if (dto.OriginalAudioUrl != null) existingEpisode.OriginalAudioUrl = dto.OriginalAudioUrl;
         if (dto.AudioQualities != null) existingEpisode.AudioQualities = dto.AudioQualities;
         if (dto.ThumbnailUrl != null) existingEpisode.ThumbnailUrl = dto.ThumbnailUrl;
         if (dto.ReleaseDate.HasValue) existingEpisode.ReleaseDate = dto.ReleaseDate.Value;
         if (dto.IsActive.HasValue) existingEpisode.IsActive = dto.IsActive.Value;
+        if (dto.ProcessingStatus.HasValue) existingEpisode.ProcessingStatus = dto.ProcessingStatus.Value;
+        if (dto.OriginalFileName != null) existingEpisode.OriginalFileName = dto.OriginalFileName;
+        if (dto.ProcessingStartedAt.HasValue) existingEpisode.ProcessingStartedAt = dto.ProcessingStartedAt.Value;
+        if (dto.ProcessingCompletedAt.HasValue) existingEpisode.ProcessingCompletedAt = dto.ProcessingCompletedAt.Value;
+        if (dto.ProcessingErrorMessage != null) existingEpisode.ProcessingErrorMessage = dto.ProcessingErrorMessage;
 
         var updatedEpisode = await _podcastEpisodeRepository.UpdateAsync(existingEpisode);
         return await MapToResponseDtoWithDetails(updatedEpisode);
@@ -126,11 +133,16 @@ public class PodcastEpisodeService : IPodcastEpisodeService
             Description = episode.Description,
             CreatedAt = episode.CreatedAt,
             DurationSeconds = episode.DurationSeconds,
-            AudioUrl = episode.AudioUrl,
+            OriginalAudioUrl = episode.OriginalAudioUrl,
             AudioQualities = episode.AudioQualities,
             ThumbnailUrl = episode.ThumbnailUrl,
             ReleaseDate = episode.ReleaseDate,
             IsActive = episode.IsActive,
+            ProcessingStatus = episode.ProcessingStatus,
+            OriginalFileName = episode.OriginalFileName,
+            ProcessingStartedAt = episode.ProcessingStartedAt,
+            ProcessingCompletedAt = episode.ProcessingCompletedAt,
+            ProcessingErrorMessage = episode.ProcessingErrorMessage,
             
             // Series bilgileri
             SeriesTitle = series?.Title ?? string.Empty,

@@ -15,11 +15,11 @@ public class AppConfigService : IAppConfigService
     }
 
 
-    public async Task<List<AppConfigDto?>> GetAllAsync()
+    public async Task<List<AppConfigDto>> GetAllAsync()
     {
         var appConfigs = await _appConfigRepository.GetAllAsync();
         
-        var result = new List<AppConfigDto?>();
+        var result = new List<AppConfigDto>();
         foreach (var appConfig in appConfigs)
         {
             result.Add(MapToAppConfigDto(appConfig));

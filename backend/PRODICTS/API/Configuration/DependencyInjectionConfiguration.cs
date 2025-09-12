@@ -21,6 +21,14 @@ public static class DependencyInjectionConfiguration
             return new MongoDbContext(settings);
         });
 
+        // RabbitMQ Configuration
+        services.Configure<Infrastructure.Options.RabbitMqSettings>(
+            configuration.GetSection("RabbitMQ"));
+        
+        // FFmpeg Configuration
+        services.Configure<Infrastructure.Options.FFmpegSettings>(
+            configuration.GetSection("FFmpegSettings"));
+
         // Repository Dependencies
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IAnonymousUserRepository, AnonymousUserRepository>();
@@ -35,13 +43,21 @@ public static class DependencyInjectionConfiguration
 
         // Service Dependencies
         services.AddScoped<IUserService, UserService>();
-        services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IFlashCardService, FlashCardService>();
         services.AddScoped<IFlashCardGroupService, FlashCardGroupService>();
+        services.AddScoped<IJwtService, JwtService>();
         services.AddScoped<IAppConfigService, AppConfigService>();
         services.AddScoped<IPodcastSeriesService, PodcastSeriesService>();
         services.AddScoped<IPodcastSeasonService, PodcastSeasonService>();
         services.AddScoped<IPodcastEpisodeService, PodcastEpisodeService>();
-        services.AddScoped<IPodcastQuizService, PodcastQuizService>(); 
+        services.AddScoped<IPodcastQuizService, PodcastQuizService>();
+        
+        // Infrastructure Services
+        services.AddScoped<IFileUploadService, Infrastructure.Services.FileUploadService>();
+        services.AddScoped<IFfmpegService, Infrastructure.Services.FfmpegService>();
+        services.AddSingleton<IQueueService, Infrastructure.Services.RabbitMqService>();
+        
+        // Background Services
+        services.AddHostedService<Infrastructure.Services.AudioProcessingBackgroundService>(); 
     }
 }

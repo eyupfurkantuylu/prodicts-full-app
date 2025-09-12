@@ -40,6 +40,8 @@ public class PodcastAdminController : ControllerBase
     private readonly IPodcastSeasonService _podcastSeasonService;
     private readonly IPodcastEpisodeService _podcastEpisodeService;
     private readonly IPodcastQuizService _podcastQuizService;
+    private readonly IFileUploadService _fileUploadService;
+    private readonly IQueueService _queueService;
     private readonly ILogger<PodcastAdminController> _logger;
 
     public PodcastAdminController(
@@ -47,12 +49,16 @@ public class PodcastAdminController : ControllerBase
         IPodcastSeasonService podcastSeasonService,
         IPodcastEpisodeService podcastEpisodeService,
         IPodcastQuizService podcastQuizService,
+        IFileUploadService fileUploadService,
+        IQueueService queueService,
         ILogger<PodcastAdminController> logger)
     {
         _podcastSeriesService = podcastSeriesService;
         _podcastSeasonService = podcastSeasonService;
         _podcastEpisodeService = podcastEpisodeService;
         _podcastQuizService = podcastQuizService;
+        _fileUploadService = fileUploadService;
+        _queueService = queueService;
         _logger = logger;
     }
 
@@ -301,6 +307,234 @@ public class PodcastAdminController : ControllerBase
     #endregion
 
     #region Podcast Episode Management
+    
+    /// <summary>
+    /// Yeni podcast bölümü oluştur (sadece metadata)
+    /// </summary>
+    /// <param name="dto">Episode metadata bilgileri</param>
+    /// <returns>Oluşturulan episode bilgileri</returns>
+    /// <response code="200">Episode başarıyla oluşturuldu</response>
+    /// <response code="400">Geçersiz veri</response>
+    /// <response code="401">Yetkisiz erişim</response>
+    /// <response code="500">Sunucu hatası</response>
+    /// <remarks>
+    /// Bu endpoint sadece podcast episode metadata'sını oluşturur.
+    /// Audio ve thumbnail dosyaları ayrı endpoint'lerle upload edilir.
+    /// 
+    /// **Kullanım Akışı:**
+    /// 1. Bu endpoint ile episode oluştur
+    /// 2. `POST /episodes/{id}/upload-audio` ile audio dosyası upload et
+    /// 3. `POST /episodes/{id}/upload-thumbnail` ile thumbnail upload et (opsiyonel)
+    /// 
+    /// **Başlangıç Durumu:**
+    /// - ProcessingStatus: Uploaded
+    /// - DurationSeconds: 0 (audio upload'tan sonra doldurulur)
+    /// - AudioQualities: Boş liste (processing'den sonra doldurulur)
+    /// </remarks>
+    [HttpPost("episode")]
+    [ProducesResponseType(typeof(ApiResponse<PodcastEpisodeResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<PodcastEpisodeResponseDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<PodcastEpisodeResponseDto>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<PodcastEpisodeResponseDto>), StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<ApiResponse<PodcastEpisodeResponseDto>>> CreatePodcastEpisode(
+        [FromBody] CreatePodcastEpisodeDto dto)
+    {
+        try
+        {
+            // MongoDB ObjectId format validation
+            if (!MongoDB.Bson.ObjectId.TryParse(dto.PodcastSeriesId, out _))
+                return BadRequest(ApiResponse<PodcastEpisodeResponseDto>.ErrorResult("Geçersiz PodcastSeriesId formatı"));
+            
+            if (!MongoDB.Bson.ObjectId.TryParse(dto.PodcastSeasonId, out _))
+                return BadRequest(ApiResponse<PodcastEpisodeResponseDto>.ErrorResult("Geçersiz PodcastSeasonId formatı"));
+
+            var episode = await _podcastEpisodeService.CreateAsync(dto);
+            if (episode == null)
+                return BadRequest(ApiResponse<PodcastEpisodeResponseDto>.ErrorResult("Episode oluşturulamadı"));
+
+            _logger.LogInformation("Podcast episode created. EpisodeId: {EpisodeId}", episode.Id);
+
+            return Ok(ApiResponse<PodcastEpisodeResponseDto>.SuccessResult(episode, "Episode başarıyla oluşturuldu"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "CreatePodcastEpisode error");
+            return StatusCode(500, ApiResponse<PodcastEpisodeResponseDto>.ErrorResult("Bir hata oluştu"));
+        }
+    }
+    
+    /// <summary>
+    /// Episode için audio dosyası upload et
+    /// </summary>
+    /// <param name="id">Episode ID</param>
+    /// <param name="audioFile">MP3 audio dosyası</param>
+    /// <returns>Upload sonucu</returns>
+    /// <response code="200">Audio başarıyla upload edildi ve işleme alındı</response>
+    /// <response code="400">Geçersiz dosya</response>
+    /// <response code="401">Yetkisiz erişim</response>
+    /// <response code="404">Episode bulunamadı</response>
+    /// <response code="500">Sunucu hatası</response>
+    /// <remarks>
+    /// Bu endpoint daha önce oluşturulmuş bir episode için audio dosyası upload eder.
+    /// 
+    /// **Upload Süreci:**
+    /// 1. Audio dosyası validation (MP3, max 500MB)
+    /// 2. Dosya public/podcasts/{episodeId}/original.mp3 olarak kaydedilir
+    /// 3. ProcessingStatus = Queued olarak güncellenir
+    /// 4. RabbitMQ'ya processing mesajı gönderilir
+    /// 5. Background service FFmpeg ile audio analysis yapar
+    /// 6. Duration, bitrate ve quality versiyonları oluşturulur
+    /// 
+    /// **Audio Processing (Otomatik):**
+    /// - Original kalite korunur
+    /// - 256kbps, 128kbps, 64kbps versiyonları oluşturulur
+    /// - Duration ve bitrate bilgisi çıkarılır
+    /// </remarks>
+    [HttpPost("episodes/{id}/upload-audio")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ApiResponse<PodcastEpisodeResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<PodcastEpisodeResponseDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<PodcastEpisodeResponseDto>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<PodcastEpisodeResponseDto>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<PodcastEpisodeResponseDto>), StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<ApiResponse<PodcastEpisodeResponseDto>>> UploadEpisodeAudio(
+        string id,
+        [FromForm] IFormFile audioFile)
+    {
+        try
+        {
+            // Episode kontrolü
+            var episode = await _podcastEpisodeService.GetByIdAsync(id);
+            if (episode == null)
+                return NotFound(ApiResponse<PodcastEpisodeResponseDto>.ErrorResult("Episode bulunamadı"));
+
+            // Audio dosyası validation
+            if (audioFile == null || audioFile.Length == 0)
+                return BadRequest(ApiResponse<PodcastEpisodeResponseDto>.ErrorResult("Audio dosyası gerekli"));
+
+            var isValidAudio = await _fileUploadService.ValidateAudioFileAsync(audioFile);
+            if (!isValidAudio)
+                return BadRequest(ApiResponse<PodcastEpisodeResponseDto>.ErrorResult("Geçersiz audio dosyası. Sadece MP3 formatı kabul edilir"));
+
+            // Audio dosyası upload
+            var audioFilePath = await _fileUploadService.UploadAudioFileAsync(
+                audioFile, 
+                episode.PodcastSeriesId, 
+                episode.PodcastSeasonId, 
+                episode.Id);
+
+            // Episode'u güncelle - processing status'u Queued yap
+            var updateDto = new UpdatePodcastEpisodeDto
+            {
+                OriginalAudioUrl = audioFilePath,
+                OriginalFileName = audioFile.FileName,
+                ProcessingStatus = Domain.Enums.ProcessingStatus.Queued
+            };
+
+            var updatedEpisode = await _podcastEpisodeService.UpdateAsync(episode.Id, updateDto);
+
+            // RabbitMQ'ya processing mesajı gönder
+            var processingMessage = new Infrastructure.Models.AudioProcessingMessage
+            {
+                EpisodeId = episode.Id,
+                OriginalFilePath = audioFilePath,
+                OriginalFileName = audioFile.FileName,
+                QualityLevels = new List<Infrastructure.Models.AudioQualityRequest>
+                {
+                    new() { Quality = "64k", Bitrate = 64, OutputPath = $"podcasts/{episode.PodcastSeriesId}/{episode.PodcastSeasonId}/{episode.Id}/64k.mp3" },
+                    new() { Quality = "128k", Bitrate = 128, OutputPath = $"podcasts/{episode.PodcastSeriesId}/{episode.PodcastSeasonId}/{episode.Id}/128k.mp3" },
+                    new() { Quality = "256k", Bitrate = 256, OutputPath = $"podcasts/{episode.PodcastSeriesId}/{episode.PodcastSeasonId}/{episode.Id}/256k.mp3" }
+                }
+            };
+
+            await _queueService.PublishAudioProcessingMessageAsync(processingMessage);
+
+            _logger.LogInformation("Audio uploaded and queued for processing. EpisodeId: {EpisodeId}", episode.Id);
+
+            return Ok(ApiResponse<PodcastEpisodeResponseDto>.SuccessResult(
+                updatedEpisode ?? episode,
+                "Audio dosyası başarıyla upload edildi ve işleme kuyruğa alındı"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "UploadEpisodeAudio error with id: {id}", id);
+            return StatusCode(500, ApiResponse<PodcastEpisodeResponseDto>.ErrorResult("Bir hata oluştu"));
+        }
+    }
+    
+    /// <summary>
+    /// Episode için thumbnail upload et
+    /// </summary>
+    /// <param name="id">Episode ID</param>
+    /// <param name="thumbnailFile">Thumbnail resmi (JPG, PNG, WEBP)</param>
+    /// <returns>Upload sonucu</returns>
+    /// <response code="200">Thumbnail başarıyla upload edildi</response>
+    /// <response code="400">Geçersiz dosya</response>
+    /// <response code="401">Yetkisiz erişim</response>
+    /// <response code="404">Episode bulunamadı</response>
+    /// <response code="500">Sunucu hatası</response>
+    /// <remarks>
+    /// Bu endpoint daha önce oluşturulmuş bir episode için thumbnail upload eder.
+    /// 
+    /// **Upload Klasörü:**
+    /// - public/thumbnails/{seriesId}/{seasonId}/{episodeId}/thumbnail_{timestamp}.jpg
+    /// 
+    /// **Desteklenen Formatlar:**
+    /// - JPG, JPEG, PNG, WEBP (maksimum 10MB)
+    /// </remarks>
+    [HttpPost("episodes/{id}/upload-thumbnail")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ApiResponse<PodcastEpisodeResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<PodcastEpisodeResponseDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<PodcastEpisodeResponseDto>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<PodcastEpisodeResponseDto>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<PodcastEpisodeResponseDto>), StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<ApiResponse<PodcastEpisodeResponseDto>>> UploadEpisodeThumbnail(
+        string id,
+        [FromForm] IFormFile thumbnailFile)
+    {
+        try
+        {
+            // Episode kontrolü
+            var episode = await _podcastEpisodeService.GetByIdAsync(id);
+            if (episode == null)
+                return NotFound(ApiResponse<PodcastEpisodeResponseDto>.ErrorResult("Episode bulunamadı"));
+
+            // Thumbnail dosyası validation
+            if (thumbnailFile == null || thumbnailFile.Length == 0)
+                return BadRequest(ApiResponse<PodcastEpisodeResponseDto>.ErrorResult("Thumbnail dosyası gerekli"));
+
+            var isValidThumbnail = await _fileUploadService.ValidateImageFileAsync(thumbnailFile);
+            if (!isValidThumbnail)
+                return BadRequest(ApiResponse<PodcastEpisodeResponseDto>.ErrorResult("Geçersiz thumbnail dosyası. JPG, PNG, WEBP formatları kabul edilir"));
+
+            // Thumbnail upload
+            var thumbnailUrl = await _fileUploadService.UploadThumbnailAsync(
+                thumbnailFile,
+                episode.PodcastSeriesId,
+                episode.PodcastSeasonId,
+                episode.Id);
+
+            // Episode'u güncelle
+            var updateDto = new UpdatePodcastEpisodeDto
+            {
+                ThumbnailUrl = thumbnailUrl
+            };
+
+            var updatedEpisode = await _podcastEpisodeService.UpdateAsync(episode.Id, updateDto);
+
+            _logger.LogInformation("Thumbnail uploaded for episode. EpisodeId: {EpisodeId}", episode.Id);
+
+            return Ok(ApiResponse<PodcastEpisodeResponseDto>.SuccessResult(
+                updatedEpisode ?? episode,
+                "Thumbnail başarıyla upload edildi"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "UploadEpisodeThumbnail error with id: {id}", id);
+            return StatusCode(500, ApiResponse<PodcastEpisodeResponseDto>.ErrorResult("Bir hata oluştu"));
+        }
+    }
 
     /// <summary>
     /// Tüm podcast bölümlerini getir (admin view)

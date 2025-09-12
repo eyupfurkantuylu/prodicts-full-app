@@ -21,4 +21,9 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.6.9" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="public\podcasts\" />
+    <Folder Include="public\thumbnails\" />
+  </ItemGroup>
+
 </Project>
